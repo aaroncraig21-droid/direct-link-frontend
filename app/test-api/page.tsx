@@ -1,13 +1,13 @@
 import { apiGet } from "@/lib/api";
 
 export default async function TestApiPage() {
-    let result: any = null;
+    let result: unknown = null;
     let error: string | null = null;
 
     try {
         result = await apiGet("/surveys/feed");
-    } catch (err: any) {
-        error = err.message;
+    } catch (err: unknown) {
+        error = err instanceof Error ? err.message : "Unknown error";
     }
 
     return (
