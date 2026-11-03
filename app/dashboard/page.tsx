@@ -18,6 +18,12 @@ interface OverviewResponse {
     }>;
 }
 
+function formatRole(role: string) {
+    if (role === "citizen") return "constituent";
+    if (role === "rep") return "representative";
+    return role;
+}
+
 export default function DashboardOverview() {
     const [overview, setOverview] = useState<OverviewResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -77,8 +83,8 @@ export default function DashboardOverview() {
                     <h2 className="font-semibold text-gray-900">Your account</h2>
                     <p className="mt-2 text-sm text-gray-600">
                         {overview.user.zip_code
-                            ? `ZIP code ${overview.user.zip_code} · ${overview.user.role}`
-                            : `No ZIP code on file · ${overview.user.role}`}
+                            ? `ZIP code ${overview.user.zip_code} · ${formatRole(overview.user.role)}`
+                            : `No ZIP code on file · ${formatRole(overview.user.role)}`}
                     </p>
                     <Link href="/dashboard/profile" className="mt-4 inline-block text-sm font-medium text-blue-700 hover:underline">
                         Manage your profile
