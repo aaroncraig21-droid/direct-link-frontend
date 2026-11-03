@@ -20,13 +20,13 @@ export default async function TestApiPage() {
                 </div>
             )}
 
-            {result && (
+            {result !== null && (
                 <pre className="bg-gray-100 p-4 rounded overflow-auto text-sm">
                     {JSON.stringify(result, null, 2)}
                 </pre>
             )}
 
-            {!error && !result && <p>Loading...</p>}
+            {!error && result === null && <p>Loading...</p>}
         </div>
     );
 }
