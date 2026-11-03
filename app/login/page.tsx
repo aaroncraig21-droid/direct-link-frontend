@@ -1,116 +1,98 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { apiPost, setAuthToken } from "@/lib/api";
+import { apiPost, setAuthTokens } from "@/lib/api";
 
-interface LoginResponseUser {
-    id?: string;
-    name?: string;
-    fullName?: string;
-    firstName?: string;
-    lastName?: string;
-    first_name?: string;
-    last_name?: string;
-}
-
-interface LoginResponse {
-    token?: string;
-    user?: LoginResponseUser;
-}
-
-function buildUserName(user?: LoginResponseUser) {
-    if (!user) return "";
-
-    if (user.name) return user.name;
-    if (user.fullName) return user.fullName;
-
-    const first = user.firstName ?? user.first_name ?? "";
-    const last = user.lastName ?? user.last_name ?? "";
-
-    return `${first} ${last}`.trim();
+interface AuthResponse {
+    tokens?: {
+        access?: string;
+        refresh?: string;
+    };
 }
 
 export default function LoginPage() {
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [status, setStatus] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
 
-    const handleSubmit = async (event: FormEvent) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setError(null);
-        setStatus("Logging in...");
+        setSubmitting(true);
 
         try {
-            const response = await apiPost<LoginResponse>("/users/login", {
-                email,
+            const response = await apiPost<AuthResponse>("/auth/login", {
+                email: email.trim(),
                 password,
             });
 
-            if (response.token) {
-                setAuthToken(response.token);
+            if (!response.tokens?.access) {
+                throw new Error("The sign-in response did not include an access token.");
             }
 
-            const userName = buildUserName(response.user);
-            const statusMessage = response.token
-                ? `Login successful${userName ? ` for ${userName}` : ""}.`
-                : "Logged in, but no token was returned.";
-
-            setStatus(statusMessage);
+            setAuthTokens(response.tokens.access, response.tokens.refresh);
+            router.replace("/dashboard");
         } catch (err) {
-            const message = err instanceof Error ? err.message : "Login failed";
-            setError(message);
-            setStatus(null);
+            setError(err instanceof Error ? err.message : "Unable to sign in.");
+        } finally {
+            setSubmitting(false);
         }
     };
 
     return (
-        <div className="max-w-md mx-auto p-8 bg-white rounded shadow">
-            <h1 className="text-2xl font-semibold mb-4">Login</h1>
+        <section className="mx-auto my-12 max-w-md rounded-xl border bg-white p-8 shadow-sm">
+            <h1 className="mb-2 text-2xl font-semibold">Sign in</h1>
+            <p className="mb-6 text-sm text-gray-600">
+                Sign in to follow bills and share your position with your representatives.
+            </p>
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="email">
-                        Email
-                    </label>
+                    <label className="block text-sm font-medium" htmlFor="email">Email</label>
                     <input
                         id="email"
+                        name="email"
                         type="email"
+                        autoComplete="email"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
-                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border px-3 py-2"
                         required
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="password">
-                        Password
-                    </label>
+                    <label className="block text-sm font-medium" htmlFor="password">Password</label>
                     <input
                         id="password"
+                        name="password"
                         type="password"
+                        autoComplete="current-password"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
-                        className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 block w-full rounded-md border px-3 py-2"
                         required
                     />
                 </div>
 
                 <button
                     type="submit"
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+                    disabled={submitting}
+                    className="w-full rounded-md bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    Sign In
+                    {submitting ? "Signing in…" : "Sign in"}
                 </button>
             </form>
 
-            {status && (
-                <p className="mt-4 text-green-700 bg-green-100 p-3 rounded border border-green-200">{status}</p>
-            )}
             {error && (
-                <p className="mt-4 text-red-700 bg-red-100 p-3 rounded border border-red-200">{error}</p>
+                <p role="alert" className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
+                    {error}
+                </p>
             )}
-        </div>
+        </section>
     );
 }
