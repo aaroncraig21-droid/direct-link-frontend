@@ -125,3 +125,21 @@ export async function apiPost<T>(
 
     return res.json() as Promise<T>;
 }
+
+export async function apiPatch<T>(
+    endpoint: string,
+    data: Record<string, unknown>
+): Promise<T> {
+    const res = await fetch(resolveApiUrl(endpoint), withAuth({
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    }));
+
+    if (!res.ok) {
+        throw new Error(await errorMessage(res, "PATCH", endpoint));
+    }
+
+    return res.json() as Promise<T>;
+}
