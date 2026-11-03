@@ -238,7 +238,7 @@ export default function BillsPage() {
                                                     </section>
                                                 )}
 
-                                                {role === "constituent" ? (
+                                                {role === "citizen" ? (
                                                     <form onSubmit={(event) => void savePosition(event, bill.id)} className="mt-4 space-y-3">
                                                         <fieldset>
                                                             <legend className="text-sm font-medium text-gray-900">What is your position?</legend>
