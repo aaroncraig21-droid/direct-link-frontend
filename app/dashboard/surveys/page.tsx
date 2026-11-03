@@ -114,7 +114,7 @@ export default function SurveysPage() {
         );
     }
 
-    if (role !== "constituent") {
+    if (role !== "citizen") {
         return (
             <section className="rounded-xl border bg-white p-6 text-sm text-gray-700 shadow-sm">
                 Survey responses are available to constituent accounts.
