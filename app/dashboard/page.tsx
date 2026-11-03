@@ -1,28 +1,116 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { apiGet } from "@/lib/api";
+
+interface OverviewResponse {
+    user: {
+        email: string;
+        role: string;
+        zip_code?: string | null;
+    };
+    inbox_preview: Array<{
+        subject: string;
+        from: string;
+        created_at: string;
+    }>;
+}
+
 export default function DashboardOverview() {
+    const [overview, setOverview] = useState<OverviewResponse | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let active = true;
+
+        apiGet<OverviewResponse>("/mobile/overview")
+            .then((data) => {
+                if (active) setOverview(data);
+            })
+            .catch((err: unknown) => {
+                if (active) {
+                    setError(err instanceof Error ? err.message : "Unable to load your dashboard.");
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    if (error) {
+        return (
+            <section className="rounded-xl border border-red-200 bg-white p-6" role="alert">
+                <h1 className="text-xl font-semibold text-red-900">Dashboard unavailable</h1>
+                <p className="mt-2 text-sm text-red-800">{error}</p>
+                <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="mt-4 rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+                >
+                    Try again
+                </button>
+            </section>
+        );
+    }
+
+    if (!overview) {
+        return <p className="p-2 text-sm text-gray-600" role="status">Loading your dashboard…</p>;
+    }
+
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-4">Welcome to your Dashboard</h1>
-            <p className="text-gray-600 mb-8">
-                This is where constituents and representatives will see insights,
-                notifications, and more.
-            </p>
+        <div className="mx-auto max-w-5xl space-y-6">
+            <header>
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                    Constituent dashboard
+                </p>
+                <h1 className="mt-2 text-3xl font-bold text-gray-950">Welcome back</h1>
+                <p className="mt-2 text-gray-600">
+                    Signed in as {overview.user.email}
+                </p>
+            </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-6 bg-white rounded-lg shadow">
-                    <h2 className="font-semibold mb-2">Active Bills</h2>
-                    <p className="text-sm text-gray-500">0 active bills (loading soon)</p>
-                </div>
+            <section>
+                <article className="rounded-xl border bg-white p-6 shadow-sm">
+                    <h2 className="font-semibold text-gray-900">Your account</h2>
+                    <p className="mt-2 text-sm text-gray-600">
+                        {overview.user.zip_code
+                            ? `ZIP code ${overview.user.zip_code} · ${overview.user.role}`
+                            : `No ZIP code on file · ${overview.user.role}`}
+                    </p>
+                    <Link href="/dashboard/profile" className="mt-4 inline-block text-sm font-medium text-blue-700 hover:underline">
+                        Manage your profile
+                    </Link>
+                </article>
+            </section>
 
-                <div className="p-6 bg-white rounded-lg shadow">
-                    <h2 className="font-semibold mb-2">Survey Response Rate</h2>
-                    <p className="text-sm text-gray-500">No data yet</p>
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h2 className="font-semibold text-gray-900">Your inbox</h2>
+                        <p className="mt-1 text-sm text-gray-600">Recent messages and account updates.</p>
+                    </div>
+                    <Link href="/dashboard/notifications" className="text-sm font-medium text-blue-700 hover:underline">
+                        View notifications
+                    </Link>
                 </div>
-
-                <div className="p-6 bg-white rounded-lg shadow">
-                    <h2 className="font-semibold mb-2">New Notifications</h2>
-                    <p className="text-sm text-gray-500">None</p>
-                </div>
-            </div>
+                {overview.inbox_preview.length > 0 ? (
+                    <ul className="mt-4 divide-y">
+                        {overview.inbox_preview.map((message, index) => (
+                            <li key={`${message.created_at}-${index}`} className="py-3">
+                                <p className="font-medium text-gray-900">{message.subject || "Message"}</p>
+                                <p className="mt-1 text-sm text-gray-600">From {message.from}</p>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="mt-4 rounded-md bg-gray-50 p-4 text-sm text-gray-600">
+                        Your inbox is empty for now.
+                    </p>
+                )}
+            </section>
         </div>
     );
 }
