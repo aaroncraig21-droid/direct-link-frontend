@@ -10,6 +10,12 @@ interface ProfileResponse {
     zip_code?: string | null;
 }
 
+function formatRole(role?: string | null) {
+    if (role === "citizen") return "Constituent";
+    if (role === "rep") return "Representative";
+    return role ?? "Unknown";
+}
+
 export default function ProfilePage() {
     const [profile, setProfile] = useState<ProfileResponse | null>(null);
     const [zipCode, setZipCode] = useState("");
@@ -87,7 +93,7 @@ export default function ProfilePage() {
                     </div>
                     <div>
                         <dt className="text-sm font-medium text-gray-500">Account type</dt>
-                        <dd className="mt-1 capitalize text-gray-900">{profile?.role}</dd>
+                        <dd className="mt-1 text-gray-900">{formatRole(profile?.role)}</dd>
                     </div>
                 </dl>
 
