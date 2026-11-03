@@ -1,9 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { MainNav } from "@/components/nav/MainNav";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
     title: "Direct Link Systems",
@@ -17,7 +14,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en">
-            <body className={`${inter.className} bg-gray-50`}>
+            <body className="bg-gray-50 font-sans">
                 <MainNav />
                 <main className="pt-6">{children}</main>
             </body>
