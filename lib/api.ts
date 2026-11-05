@@ -62,8 +62,10 @@ export function clearAuthToken() {
 // Kept as compatibility exports for existing callers. Authentication now lives in
 // the HttpOnly server session; no credential is stored in browser JavaScript.
 export const clearAuthTokens = clearAuthToken;
-export function setAuthToken(_token: string) {}
-export function setAuthTokens(_accessToken: string, _refreshToken?: string) {
+export function setAuthToken(token: string) { void token; }
+export function setAuthTokens(accessToken: string, refreshToken?: string) {
+    void accessToken;
+    void refreshToken;
     clearAuthToken();
 }
 
