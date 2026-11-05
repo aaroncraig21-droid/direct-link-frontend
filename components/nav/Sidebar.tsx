@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { clearAuthTokens } from "@/lib/api";
+import { apiPost, clearAuthTokens } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -18,9 +18,15 @@ export function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
 
-    const handleSignOut = () => {
-        clearAuthTokens();
-        router.replace("/login");
+    const handleSignOut = async () => {
+        try {
+            await apiPost("/auth/logout", {});
+        } catch {
+            // The server session may already have expired.
+        } finally {
+            clearAuthTokens();
+            router.replace("/login");
+        }
     };
 
     return (

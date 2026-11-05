@@ -1,6 +1,7 @@
 const API_DEFAULT_BASE_URL = "http://localhost:5000/api/v1";
-export const API_TOKEN_STORAGE_KEY = "direct-link-auth-token";
-export const API_REFRESH_TOKEN_STORAGE_KEY = "direct-link-refresh-token";
+
+let csrfToken: string | null = null;
+let csrfTokenPromise: Promise<string> | null = null;
 
 function normalizeBaseUrl(rawBaseUrl: string) {
     const trimmed = rawBaseUrl.replace(/\/+$/, "");
@@ -9,137 +10,92 @@ function normalizeBaseUrl(rawBaseUrl: string) {
 
 function getBaseUrl() {
     const configured = process.env.NEXT_PUBLIC_API_URL;
-    const baseUrl = configured && configured.trim().length > 0
-        ? configured
-        : API_DEFAULT_BASE_URL;
-
+    const baseUrl = configured && configured.trim().length > 0 ? configured : API_DEFAULT_BASE_URL;
     return normalizeBaseUrl(baseUrl);
 }
 
 function resolveApiUrl(endpoint: string) {
-    const isAbsolute = /^https?:\/\//.test(endpoint);
-
-    if (isAbsolute) {
-        return endpoint;
-    }
-
+    if (/^https?:\/\//.test(endpoint)) return endpoint;
     const baseUrl = getBaseUrl();
-    const sanitizedEndpoint = endpoint.startsWith("/")
-        ? endpoint.slice(1)
-        : endpoint;
-
+    const sanitizedEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
     return new URL(sanitizedEndpoint, baseUrl).toString();
 }
 
-function getStoredAuthToken() {
-    if (typeof window === "undefined") {
-        return null;
+async function getCsrfToken(): Promise<string> {
+    if (csrfToken) return csrfToken;
+    if (!csrfTokenPromise) {
+        csrfTokenPromise = fetch(resolveApiUrl("/auth/csrf"), { credentials: "include" })
+            .then(async (response) => {
+                if (!response.ok) throw new Error(`Unable to prepare a secure request: ${response.status}`);
+                const payload = await response.json() as { csrf_token?: string };
+                if (!payload.csrf_token) throw new Error("The server did not provide a CSRF token.");
+                csrfToken = payload.csrf_token;
+                return csrfToken;
+            })
+            .finally(() => { csrfTokenPromise = null; });
     }
-
-    return localStorage.getItem(API_TOKEN_STORAGE_KEY);
+    return csrfTokenPromise;
 }
 
-export function setAuthToken(token: string) {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    localStorage.setItem(API_TOKEN_STORAGE_KEY, token);
-}
-
-export function setAuthTokens(accessToken: string, refreshToken?: string) {
-    setAuthToken(accessToken);
-
-    if (typeof window !== "undefined" && refreshToken) {
-        localStorage.setItem(API_REFRESH_TOKEN_STORAGE_KEY, refreshToken);
-    }
-}
-
-export function clearAuthToken() {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    localStorage.removeItem(API_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(API_REFRESH_TOKEN_STORAGE_KEY);
-}
-
-export const clearAuthTokens = clearAuthToken;
-
-function withAuth(init: RequestInit = {}) {
-    const token = getStoredAuthToken();
-
-    if (!token) {
-        return init;
-    }
-
+function withCsrf(init: RequestInit, token: string): RequestInit {
     const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${token}`);
-
-    return {
-        ...init,
-        headers,
-    } satisfies RequestInit;
+    headers.set("X-CSRF-Token", token);
+    return { ...init, headers };
 }
 
 async function errorMessage(response: Response, method: string, endpoint: string) {
     try {
         const payload = await response.json();
         const message = payload?.error?.message;
-        if (typeof message === "string" && message.trim()) {
-            return message;
-        }
+        if (typeof message === "string" && message.trim()) return message;
     } catch {
-        // Keep the status-based message when the server does not return JSON.
+        // Use the status message when the response is not JSON.
     }
-
     return `API ${method} ${endpoint} failed: ${response.status}`;
 }
 
-export async function apiGet<T>(endpoint: string): Promise<T> {
-    const res = await fetch(resolveApiUrl(endpoint), withAuth({
-        credentials: "include",
-    }));
-
-    if (!res.ok) {
-        throw new Error(await errorMessage(res, "GET", endpoint));
-    }
-
-    return res.json() as Promise<T>;
+export function clearAuthToken() {
+    csrfToken = null;
+    csrfTokenPromise = null;
 }
 
-export async function apiPost<T>(
-    endpoint: string,
-    data: Record<string, unknown>
-): Promise<T> {
-    const res = await fetch(resolveApiUrl(endpoint), withAuth({
+// Kept as compatibility exports for existing callers. Authentication now lives in
+// the HttpOnly server session; no credential is stored in browser JavaScript.
+export const clearAuthTokens = clearAuthToken;
+export function setAuthToken(_token: string) {}
+export function setAuthTokens(_accessToken: string, _refreshToken?: string) {
+    clearAuthToken();
+}
+
+export async function apiGet<T>(endpoint: string): Promise<T> {
+    const response = await fetch(resolveApiUrl(endpoint), { credentials: "include" });
+    if (!response.ok) throw new Error(await errorMessage(response, "GET", endpoint));
+    return response.json() as Promise<T>;
+}
+
+export async function apiPost<T>(endpoint: string, data: Record<string, unknown>): Promise<T> {
+    const token = await getCsrfToken();
+    const init = withCsrf({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-    }));
-
-    if (!res.ok) {
-        throw new Error(await errorMessage(res, "POST", endpoint));
-    }
-
-    return res.json() as Promise<T>;
+    }, token);
+    const response = await fetch(resolveApiUrl(endpoint), init);
+    if (!response.ok) throw new Error(await errorMessage(response, "POST", endpoint));
+    if (endpoint === "/auth/login" || endpoint === "/auth/logout") clearAuthToken();
+    return response.json() as Promise<T>;
 }
 
-export async function apiPatch<T>(
-    endpoint: string,
-    data: Record<string, unknown>
-): Promise<T> {
-    const res = await fetch(resolveApiUrl(endpoint), withAuth({
+export async function apiPatch<T>(endpoint: string, data: Record<string, unknown>): Promise<T> {
+    const token = await getCsrfToken();
+    const init = withCsrf({
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-    }));
-
-    if (!res.ok) {
-        throw new Error(await errorMessage(res, "PATCH", endpoint));
-    }
-
-    return res.json() as Promise<T>;
+    }, token);
+    const response = await fetch(resolveApiUrl(endpoint), init);
+    if (!response.ok) throw new Error(await errorMessage(response, "PATCH", endpoint));
+    return response.json() as Promise<T>;
 }

@@ -3,14 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { apiPost, setAuthTokens } from "@/lib/api";
-
-interface AuthResponse {
-    tokens?: {
-        access?: string;
-        refresh?: string;
-    };
-}
+import { apiPost, clearAuthTokens } from "@/lib/api";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -25,16 +18,12 @@ export default function LoginPage() {
         setSubmitting(true);
 
         try {
-            const response = await apiPost<AuthResponse>("/auth/login", {
+            await apiPost<Record<string, unknown>>("/auth/login", {
                 email: email.trim(),
                 password,
             });
 
-            if (!response.tokens?.access) {
-                throw new Error("The sign-in response did not include an access token.");
-            }
-
-            setAuthTokens(response.tokens.access, response.tokens.refresh);
+            clearAuthTokens();
             router.replace("/dashboard");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unable to sign in.");
