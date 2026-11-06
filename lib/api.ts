@@ -85,7 +85,7 @@ export async function apiPost<T>(endpoint: string, data: Record<string, unknown>
     }, token);
     const response = await fetch(resolveApiUrl(endpoint), init);
     if (!response.ok) throw new Error(await errorMessage(response, "POST", endpoint));
-    if (endpoint === "/auth/login" || endpoint === "/auth/logout") clearAuthToken();
+    if (endpoint === "/auth/login" || endpoint === "/auth/logout" || endpoint === "/auth/recovery/complete") clearAuthToken();
     return response.json() as Promise<T>;
 }
 
