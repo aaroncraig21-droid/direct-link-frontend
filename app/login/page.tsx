@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiPost, clearAuthTokens } from "@/lib/api";
@@ -76,6 +77,12 @@ export default function LoginPage() {
                     {submitting ? "Signing in…" : "Sign in"}
                 </button>
             </form>
+
+            <p className="mt-4 text-sm text-gray-600">
+                <Link href="/forgot-password" className="font-medium text-blue-700 hover:underline">
+                    Forgot your password?
+                </Link>
+            </p>
 
             {error && (
                 <p role="alert" className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
