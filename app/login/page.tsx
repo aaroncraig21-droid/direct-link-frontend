@@ -1,16 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { apiPost, setAuthTokens } from "@/lib/api";
-
-interface AuthResponse {
-    tokens?: {
-        access?: string;
-        refresh?: string;
-    };
-}
+import { apiPost, clearAuthTokens } from "@/lib/api";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -25,16 +19,12 @@ export default function LoginPage() {
         setSubmitting(true);
 
         try {
-            const response = await apiPost<AuthResponse>("/auth/login", {
+            await apiPost<Record<string, unknown>>("/auth/login", {
                 email: email.trim(),
                 password,
             });
 
-            if (!response.tokens?.access) {
-                throw new Error("The sign-in response did not include an access token.");
-            }
-
-            setAuthTokens(response.tokens.access, response.tokens.refresh);
+            clearAuthTokens();
             router.replace("/dashboard");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Unable to sign in.");
@@ -87,6 +77,12 @@ export default function LoginPage() {
                     {submitting ? "Signing in…" : "Sign in"}
                 </button>
             </form>
+
+            <p className="mt-4 text-sm text-gray-600">
+                <Link href="/forgot-password" className="font-medium text-blue-700 hover:underline">
+                    Forgot your password?
+                </Link>
+            </p>
 
             {error && (
                 <p role="alert" className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
