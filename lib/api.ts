@@ -4,7 +4,7 @@ let csrfToken: string | null = null;
 let csrfTokenPromise: Promise<string> | null = null;
 
 function normalizeBaseUrl(rawBaseUrl: string) {
-    const trimmed = rawBaseUrl.replace(/\/+$/, "");
+    const trimmed = rawBaseUrl.replace(/\\/+$/, "");
     return `${trimmed}/`;
 }
 
@@ -15,7 +15,7 @@ function getBaseUrl() {
 }
 
 function resolveApiUrl(endpoint: string) {
-    if (/^https?:\/\//.test(endpoint)) return endpoint;
+    if (/^https?:\\/\\//.test(endpoint)) return endpoint;
     const baseUrl = getBaseUrl();
     const sanitizedEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
     return new URL(sanitizedEndpoint, baseUrl).toString();
@@ -99,5 +99,18 @@ export async function apiPatch<T>(endpoint: string, data: Record<string, unknown
     }, token);
     const response = await fetch(resolveApiUrl(endpoint), init);
     if (!response.ok) throw new Error(await errorMessage(response, "PATCH", endpoint));
+    return response.json() as Promise<T>;
+}
+
+export async function apiDelete<T>(endpoint: string, data: Record<string, unknown>): Promise<T> {
+    const token = await getCsrfToken();
+    const init = withCsrf({
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    }, token);
+    const response = await fetch(resolveApiUrl(endpoint), init);
+    if (!response.ok) throw new Error(await errorMessage(response, "DELETE", endpoint));
     return response.json() as Promise<T>;
 }
